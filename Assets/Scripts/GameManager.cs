@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
+    public static GameManager Instance;
+        
     [Header("Audio")]
     public AudioSource mainMusic;
     public AudioSource gameOverMusic;
@@ -38,22 +40,15 @@ public class GameManager : MonoBehaviour
     public Text txtHighscores;
     public Button btnRestart;
 
-    [Header("Starter")]
-    public bool firstTouch = true;
-    public GameObject[] starterGrpPrefabs;
-    public bool firstContact = true;
+    [Header("Others")]
     public GameObject tutorial;
-    public Transform lamasParent;
 
-    public static GameManager Instance;
 
 
     private void Awake()
     {
         Instance = this;
         gameOverGrp.SetActive(false);
-
-        InitAnimations();
 
         //Pause
         btnPause.onClick.AddListener(onBtnPause);
@@ -88,53 +83,17 @@ public class GameManager : MonoBehaviour
         if (SystemInfo.supportsGyroscope)
             Input.gyro.enabled = true;
 
-        GameObject instStarterGrp = Instantiate(starterGrpPrefabs[Random.Range(0, starterGrpPrefabs.Length)], lamasParent);
-        List<Transform> children = new List<Transform>();
-        foreach (Transform child in instStarterGrp.transform)
-            children.Add(child);
-
-        foreach (Transform child in children)
-        {
-            child.SetParent(lamasParent.transform);
-            TouchableSpawner.Instance.allSpawnObjects.Add(child.GetComponent<SpawnObject>());
-        }
-        Destroy(instStarterGrp);
-
-        TouchableSpawner.Instance.Init();
+        MergeObjectsController.Instance.Init();
     }
-
-    private void InitAnimations()
-    {
-        void SetupAnimator(GameObject go, string stateName = "")
-        {
-            var anim = go.GetComponent<Animator>();
-            if (anim == null) return;
-
-            anim.updateMode = AnimatorUpdateMode.UnscaledTime;
-            anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            anim.speed = Random.Range(0.9f, 1.1f);
-
-            // Optional: Clip direkt starten
-            if (!string.IsNullOrEmpty(stateName))
-                anim.Play(stateName, 0, 0f);
-        }
-
-        SetupAnimator(pauseTitle, "MenuTitleWiggle");
-        SetupAnimator(btnResume.gameObject, "ButtonIdle");
-        SetupAnimator(btnReplay.gameObject, "ButtonIdle");
-        SetupAnimator(btnSound.gameObject, "ButtonIdle");
-        SetupAnimator(btnExit.gameObject, "ButtonIdle");
-
-        SetupAnimator(btnRestart.gameObject, "ButtonIdle");
-    }
-
-
 
     private void FixedUpdate()
     {
-        if (firstTouch && Input.GetMouseButton(0))
+        if (isGameOver || isPause)
+            return;
+
+        if (MergeObjectsController.Instance.firstTouch && Input.GetMouseButton(0))
         {
-            firstTouch = false;
+            MergeObjectsController.Instance.firstTouch = false;
             Init();
             tutorial.SetActive(false);
         }
@@ -189,10 +148,9 @@ public class GameManager : MonoBehaviour
 
     public void setGameOver()
     {
+        MergeObjectsController.Instance.PauseAllMergeObjects(true);
+
         SoundManager.Instance.PlayGameOverMusic();
-
-        Time.timeScale = 0f;
-
 
         btnPause.gameObject.SetActive(false);
 
@@ -218,22 +176,30 @@ public class GameManager : MonoBehaviour
 
     void onBtnPause()
     {
+        if (isPause)
+        {
+            onBtnResume();
+            return;
+        }
+
         panelPause.SetActive(true);
         isPause = true;
-        Time.timeScale = 0f;
+        MergeObjectsController.Instance.PauseAllMergeObjects(true);
+
     }
 
     void onBtnResume()
     {
         panelPause.SetActive(false);
         StartCoroutine(unPauseDelay());
-        Time.timeScale = 1f;
+
     }
 
     private IEnumerator unPauseDelay()
     {
         yield return new WaitForSeconds(0.5f);
         isPause = false;
+        MergeObjectsController.Instance.PauseAllMergeObjects(false);
     }
 
     void onBtnReplay()
@@ -255,15 +221,13 @@ public class GameManager : MonoBehaviour
 
     void RestartGame()
     {
-        if (SpawnObject.starterTriggerRoutine != null)
-            StopCoroutine(SpawnObject.starterTriggerRoutine);
+        if (MergeObject.starterTriggerRoutine != null)
+            StopCoroutine(MergeObject.starterTriggerRoutine);
 
-        foreach (Transform child in lamasParent.transform)
+        foreach (Transform child in MergeObjectsController.Instance.lamasParent.transform)
         {
             Destroy(child.gameObject);
         }
-
-        Time.timeScale = 1f;
 
         if (SystemInfo.supportsGyroscope)
             Input.gyro.enabled = false;
@@ -271,8 +235,8 @@ public class GameManager : MonoBehaviour
         score = 0;
         txtScore.text = "0";
 
-        firstTouch = true;
-        firstContact = true;
+        MergeObjectsController.Instance.firstTouch = true;
+        MergeObjectsController.Instance.firstContact = true;
 
         addScore(0);
         SaveLoadManager.LoadSoundSetting();
