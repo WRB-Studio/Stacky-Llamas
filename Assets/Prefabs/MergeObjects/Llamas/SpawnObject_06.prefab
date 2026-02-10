@@ -10,8 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 6785318826261541307}
   - component: {fileID: 7297422089263433300}
-  - component: {fileID: 5403024516361455942}
   - component: {fileID: 1656263136197699300}
+  - component: {fileID: 5403024516361455942}
   - component: {fileID: 3085741928479449897}
   m_Layer: 0
   m_Name: SpawnObject_06
@@ -90,6 +90,20 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &1656263136197699300
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8125717087018401846}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a2e0dd00ba6ca54d913f3a1975fa4d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  value: 6
+  inMergeProcess: 0
 --- !u!50 &5403024516361455942
 Rigidbody2D:
   serializedVersion: 5
@@ -117,20 +131,6 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
---- !u!114 &1656263136197699300
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8125717087018401846}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a2e0dd00ba6ca54d913f3a1975fa4d5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  value: 6
-  inMergeProcess: 0
 --- !u!58 &3085741928479449897
 CircleCollider2D:
   m_ObjectHideFlags: 0

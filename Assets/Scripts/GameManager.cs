@@ -1,23 +1,18 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
-        
-    [Header("Audio")]
-    public AudioSource mainMusic;
-    public AudioSource gameOverMusic;
 
     [Header("Score")]
-    public Text txtScore;
+    public TextMeshProUGUI txtScore;
     public float score = 0;
 
     [Header("Combo")]
-    public Text txtComboCounter;
+    public TextMeshProUGUI txtComboCounter;
     public float maxComboTime;
     private int comboCounter;
     private float comboTimer;
@@ -37,40 +32,38 @@ public class GameManager : MonoBehaviour
     [Header("GameOver")]
     public GameObject gameOverGrp;
     [HideInInspector] public bool isGameOver = false;
-    public Text txtHighscores;
+    public TextMeshProUGUI txtHighscores; // jetzt: SCORE + BEST
     public Button btnRestart;
 
     [Header("Others")]
     public GameObject tutorial;
-
-
 
     private void Awake()
     {
         Instance = this;
         gameOverGrp.SetActive(false);
 
-        //Pause
-        btnPause.onClick.AddListener(onBtnPause);
-        btnResume.onClick.AddListener(onBtnResume);
-        btnReplay.onClick.AddListener(onBtnReplay);
-        btnExit.onClick.AddListener(onBtnExit);
-        btnSound.onClick.AddListener(onBtnSound);
+        // Pause
+        btnPause.onClick.AddListener(OnBtnPause);
+        btnResume.onClick.AddListener(OnBtnResume);
+        btnReplay.onClick.AddListener(RestartGame);
+        btnExit.onClick.AddListener(OnBtnExit);
+        btnSound.onClick.AddListener(OnBtnSound);
 
-        //GameOver
+        // GameOver
         btnRestart.onClick.AddListener(RestartGame);
 
-        txtHighscores.text = "";
-        txtComboCounter.gameObject.SetActive(false);
+        if (txtHighscores) txtHighscores.text = "";
+        if (txtComboCounter) txtComboCounter.gameObject.SetActive(false);
     }
 
-    void Start()
+    private void Start()
     {
-        addScore(0);
+        AddScore(0);
+
         SaveLoadManager.LoadSoundSetting();
         SoundManager.Instance.PlayMainMusic();
         imgSoundOff.gameObject.SetActive(!SoundManager.Instance.soundIsOn);
-        SoundManager.Instance.setSoundOnOff(SoundManager.Instance.soundIsOn);
 
         panelPause.SetActive(false);
         tutorial.SetActive(true);
@@ -98,58 +91,61 @@ public class GameManager : MonoBehaviour
             tutorial.SetActive(false);
         }
 
-        gravitationByDeviceRotation();
-        comboHandler();
+        GravitationByDeviceRotation();
+        ComboHandler();
     }
 
-    private void gravitationByDeviceRotation()
+    private void GravitationByDeviceRotation()
     {
-        if (SystemInfo.supportsGyroscope)
+        if (!SystemInfo.supportsGyroscope) return;
+
+        Vector3 gravityDirection = Input.gyro.gravity;
+        Physics2D.gravity = new Vector2(gravityDirection.x * 9.81f, gravityDirection.y * 9.81f);
+    }
+
+    private void ComboHandler()
+    {
+        if (comboCounter <= 0) return;
+
+        comboTimer -= Time.deltaTime;
+
+        if (comboTimer <= 0f)
         {
-            Vector3 gravityDirection = Input.gyro.gravity;
-            Physics2D.gravity = new Vector2(gravityDirection.x * 9.81f, gravityDirection.y * 9.81f);
+            score += comboPoints * comboCounter;
+            UpdateScoreUI();
+
+            comboCounter = 0;
+            comboPoints = 0;
+
+            if (txtComboCounter) txtComboCounter.gameObject.SetActive(false);
         }
     }
 
-
-    private void comboHandler()
+    public void AddScore(float scorePoints)
     {
-        if (comboCounter > 0)
-        {
-            comboTimer -= Time.deltaTime;
-
-            if (comboTimer <= 0f)
-            {
-                score += comboPoints * comboCounter;
-                txtScore.text = Mathf.RoundToInt(score).ToString();
-                comboCounter = 0;
-                comboPoints = 0;
-                txtComboCounter.gameObject.SetActive(false);
-            }
-        }
-    }
-
-    public void addScore(float scorePoints)
-    {
+        // Logik beibehalten (Combo-Verhalten wie vorher)
         if (comboCounter > 0 && comboTimer > 0)
         {
             comboCounter++;
             comboPoints += scorePoints;
-            txtComboCounter.gameObject.SetActive(true);
-            txtComboCounter.text = "x" + comboCounter;
+
+            if (txtComboCounter)
+            {
+                txtComboCounter.gameObject.SetActive(true);
+                txtComboCounter.text = "x" + comboCounter;
+            }
         }
 
         comboTimer = maxComboTime;
         comboCounter++;
 
         score += scorePoints;
-        txtScore.text = Mathf.RoundToInt(score).ToString();
+        UpdateScoreUI();
     }
 
     public void setGameOver()
     {
         MergeObjectsController.Instance.PauseAllMergeObjects(true);
-
         SoundManager.Instance.PlayGameOverMusic();
 
         btnPause.gameObject.SetActive(false);
@@ -157,102 +153,93 @@ public class GameManager : MonoBehaviour
         isGameOver = true;
         gameOverGrp.SetActive(true);
 
-        SaveLoadManager.SaveHighScore(score);
+        SaveLoadManager.SaveBestScore(score);
 
-        float[] highscores = SaveLoadManager.LoadHighscores();
-        string highscoreText = "";
+        int current = Mathf.RoundToInt(score);
+        int best = Mathf.RoundToInt(SaveLoadManager.LoadBestScore());
 
-        for (int i = 0; i < highscores.Length; i++)
-        {
-            if (Mathf.RoundToInt(highscores[i]) > 0)
-                highscoreText += Mathf.RoundToInt(highscores[i]).ToString() + "\n";
-            else
-                highscoreText += "000\n";
-        }
-
-        txtHighscores.text = highscoreText;
+        if (txtHighscores)
+            txtHighscores.text = $"SCORE: {current}\nBEST: {best}";
     }
 
-
-    void onBtnPause()
+    private void OnBtnPause()
     {
         if (isPause)
         {
-            onBtnResume();
+            OnBtnResume();
             return;
         }
 
         panelPause.SetActive(true);
         isPause = true;
         MergeObjectsController.Instance.PauseAllMergeObjects(true);
-
     }
 
-    void onBtnResume()
+    private void OnBtnResume()
     {
         panelPause.SetActive(false);
-        StartCoroutine(unPauseDelay());
-
+        StartCoroutine(UnPauseDelay());
     }
 
-    private IEnumerator unPauseDelay()
+    private IEnumerator UnPauseDelay()
     {
         yield return new WaitForSeconds(0.5f);
         isPause = false;
         MergeObjectsController.Instance.PauseAllMergeObjects(false);
     }
 
-    void onBtnReplay()
-    {
-        RestartGame();
-    }
-
-    void onBtnExit()
+    private void OnBtnExit()
     {
         Application.Quit();
     }
 
-    void onBtnSound()
+    private void OnBtnSound()
     {
-        SoundManager.Instance.setSoundOnOff();
+        SoundManager.Instance.ToggleSound();
         imgSoundOff.gameObject.SetActive(!SoundManager.Instance.soundIsOn);
         SaveLoadManager.SaveSoundSetting();
     }
 
-    void RestartGame()
+    private void RestartGame()
     {
         if (MergeObject.starterTriggerRoutine != null)
             StopCoroutine(MergeObject.starterTriggerRoutine);
 
         foreach (Transform child in MergeObjectsController.Instance.lamasParent.transform)
-        {
             Destroy(child.gameObject);
-        }
 
         if (SystemInfo.supportsGyroscope)
             Input.gyro.enabled = false;
 
         score = 0;
-        txtScore.text = "0";
+        comboCounter = 0;
+        comboTimer = 0;
+        comboPoints = 0;
+        UpdateScoreUI();
 
         MergeObjectsController.Instance.firstTouch = true;
         MergeObjectsController.Instance.firstContact = true;
 
-        addScore(0);
         SaveLoadManager.LoadSoundSetting();
         SoundManager.Instance.PlayMainMusic();
         imgSoundOff.gameObject.SetActive(!SoundManager.Instance.soundIsOn);
-        SoundManager.Instance.setSoundOnOff(SoundManager.Instance.soundIsOn);
 
         panelPause.SetActive(false);
         tutorial.SetActive(true);
         gameOverGrp.SetActive(false);
         btnPause.gameObject.SetActive(true);
-        txtComboCounter.gameObject.SetActive(false);
+        if (txtComboCounter) txtComboCounter.gameObject.SetActive(false);
 
         isPause = false;
         isGameOver = false;
     }
 
+    private void UpdateScoreUI()
+    {
+        if (txtScore)
+            txtScore.text = Mathf.RoundToInt(score).ToString();
+    }
 
+    // Backwards compatibility (falls irgendwo addScore() genutzt wird)
+    public void addScore(float scorePoints) => AddScore(scorePoints);
 }

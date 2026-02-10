@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class MergeObject : MonoBehaviour
@@ -10,10 +9,9 @@ public class MergeObject : MonoBehaviour
 
     private bool isBounce = false;
 
-
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (!GameManager.Instance.isGameOver && collision.transform.tag.Equals("OverflowTrigger"))
+        if (!GameManager.Instance.isGameOver && collision.CompareTag("OverflowTrigger"))
         {
             GameManager.Instance.setGameOver();
         }
@@ -29,16 +27,11 @@ public class MergeObject : MonoBehaviour
             starterTriggerRoutine = StartCoroutine(starterContactTriggerRoutine());
         }
 
-        if (otherMergeObject != null && collision.relativeVelocity.magnitude >= 4)
+        if (collision.relativeVelocity.magnitude >= 4f)
         {
-            if (GetInstanceID() < otherMergeObject.gameObject.GetInstanceID())
-            {
+            // nur einmal Sound abspielen (bei MergeObject vs MergeObject) um Doppel-Sounds zu vermeiden
+            if (otherMergeObject == null || GetInstanceID() < otherMergeObject.GetInstanceID())
                 SoundManager.Instance.PlayBounceSound();
-            }
-        }
-        else if(collision.relativeVelocity.magnitude >= 4)
-        {
-            SoundManager.Instance.PlayBounceSound();
         }
 
         if (inMergeProcess)
@@ -65,7 +58,6 @@ public class MergeObject : MonoBehaviour
                 }
 
                 GameManager.Instance.addScore(value * 10);
-
                 MergeObjectsController.Instance.SpawnMergeEffect(transform.position, value);
             }
         }
@@ -80,7 +72,6 @@ public class MergeObject : MonoBehaviour
 
         float elapsedTime = 0f;
 
-        // Shrink the object to the smaller scale
         while (elapsedTime < duration / 2)
         {
             transform.localScale = Vector3.Lerp(originalScale, smallerScale, (elapsedTime / (duration / 2)));
@@ -90,7 +81,6 @@ public class MergeObject : MonoBehaviour
 
         elapsedTime = 0f;
 
-        // Grow the object back to the original scale
         while (elapsedTime < duration / 2)
         {
             transform.localScale = Vector3.Lerp(smallerScale, originalScale, (elapsedTime / (duration / 2)));
@@ -98,9 +88,7 @@ public class MergeObject : MonoBehaviour
             yield return null;
         }
 
-        // Ensure it's set to the original scale at the end
         transform.localScale = originalScale;
-
         isBounce = false;
     }
 
@@ -117,6 +105,4 @@ public class MergeObject : MonoBehaviour
             yield return null;
         }
     }
-
-
 }

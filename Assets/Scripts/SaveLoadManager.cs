@@ -1,65 +1,36 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
 using UnityEngine;
 
-public class SaveLoadManager : MonoBehaviour
+public class SaveLoadManager
 {
-    private const int maxScores = 3;
+    private const string KeyBestScore = "BestScore";
+    private const string KeySoundOnOff = "SoundOnOff";
 
-
-    public static void SaveHighScore(float currentScore)
+    // Speichert nur Best-Score
+    public static void SaveBestScore(float currentScore)
     {
-        for (int i = 0; i < maxScores; i++)
+        float best = LoadBestScore();
+        if (currentScore > best)
         {
-            float savedScore = PlayerPrefs.GetFloat("HighScore" + i, 0);
-
-            if (currentScore > savedScore)
-            {
-                // Schiebe die niedrigeren Scores nach unten
-                for (int j = maxScores - 1; j > i; j--)
-                {
-                    PlayerPrefs.SetFloat("HighScore" + j, PlayerPrefs.GetFloat("HighScore" + (j - 1), 0));
-                }
-
-                PlayerPrefs.SetFloat("HighScore" + i, currentScore);
-                break;
-            }
+            PlayerPrefs.SetFloat(KeyBestScore, currentScore);
+            PlayerPrefs.Save();
         }
-
-        PlayerPrefs.Save();
     }
 
-    public static float[] LoadHighscores()
+    public static float LoadBestScore()
     {
-        float[] highscores = new float[maxScores];
-
-        for (int i = 0; i < maxScores; i++)
-        {
-            highscores[i] = PlayerPrefs.GetFloat("HighScore" + i, 0);
-        }
-
-        return highscores;
+        return PlayerPrefs.GetFloat(KeyBestScore, 0f);
     }
-
 
     public static void SaveSoundSetting()
     {
-        PlayerPrefs.SetInt("SoundOnOff", SoundManager.Instance.soundIsOn ? 1 : 0);
+        PlayerPrefs.SetInt(KeySoundOnOff, SoundManager.Instance != null && SoundManager.Instance.soundIsOn ? 1 : 0);
         PlayerPrefs.Save();
     }
 
-    // Laden des Sound-Zustands (ein oder aus)
     public static void LoadSoundSetting()
     {
-        if(PlayerPrefs.GetInt("SoundOnOff", 1) == 0)
-        {
-            SoundManager.Instance.setSoundOnOff(false);
-        }
-        else
-        {
-            SoundManager.Instance.setSoundOnOff(true);
-        }
+        bool isOn = PlayerPrefs.GetInt(KeySoundOnOff, 1) == 1;
+        if (SoundManager.Instance != null)
+            SoundManager.Instance.SetSound(isOn);
     }
 }
-
