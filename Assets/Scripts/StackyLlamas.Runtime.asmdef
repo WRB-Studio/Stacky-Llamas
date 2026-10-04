@@ -1,0 +1,4 @@
+{
+  "name": "StackyLlamas.Runtime",
+  "references": ["UnityEngine.UI", "Unity.TextMeshPro"]
+}

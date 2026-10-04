@@ -1,36 +1,28 @@
 using UnityEngine;
 
-public class SaveLoadManager
+public static class SaveLoadManager
 {
     private const string KeyBestScore = "BestScore";
     private const string KeySoundOnOff = "SoundOnOff";
 
-    // Speichert nur Best-Score
     public static void SaveBestScore(float currentScore)
     {
-        float best = LoadBestScore();
-        if (currentScore > best)
-        {
-            PlayerPrefs.SetFloat(KeyBestScore, currentScore);
-            PlayerPrefs.Save();
-        }
+        if (float.IsNaN(currentScore) || float.IsInfinity(currentScore) || currentScore <= LoadBestScore()) return;
+        PlayerPrefs.SetFloat(KeyBestScore, currentScore);
+        PlayerPrefs.Save();
     }
 
     public static float LoadBestScore()
     {
-        return PlayerPrefs.GetFloat(KeyBestScore, 0f);
+        float best = PlayerPrefs.GetFloat(KeyBestScore, 0);
+        return float.IsNaN(best) || float.IsInfinity(best) ? 0 : Mathf.Max(0, best);
     }
 
-    public static void SaveSoundSetting()
+    public static void SaveSoundSetting(bool isOn)
     {
-        PlayerPrefs.SetInt(KeySoundOnOff, SoundManager.Instance != null && SoundManager.Instance.soundIsOn ? 1 : 0);
+        PlayerPrefs.SetInt(KeySoundOnOff, isOn ? 1 : 0);
         PlayerPrefs.Save();
     }
 
-    public static void LoadSoundSetting()
-    {
-        bool isOn = PlayerPrefs.GetInt(KeySoundOnOff, 1) == 1;
-        if (SoundManager.Instance != null)
-            SoundManager.Instance.SetSound(isOn);
-    }
+    public static bool LoadSoundSetting() => PlayerPrefs.GetInt(KeySoundOnOff, 1) == 1;
 }

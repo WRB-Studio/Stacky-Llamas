@@ -1,24 +1,30 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
 public class MergeObjectsController : MonoBehaviour
 {
-    public static MergeObjectsController Instance;
-
+    public static MergeObjectsController Instance { get; private set; }
     private Camera mainCam;
+    private Vector3 initialPosition;
 
     [Header("Spawn Settings")]
-    public float moveRange;
-    public float spawnDelay;
-    public int spawnableIndexRange = 3;
+    [Min(0)] public float moveRange;
+    [Min(0)] public float spawnDelay;
+    [Min(1)] public int spawnableIndexRange = 3;
     public GameObject[] mergeObjects;
 
-    [Header("Runtime Data")]
-    private GameObject currentMergeObject;
+    private MergeObject currentMergeObject;
     public List<MergeObject> instantiatedMergeObjects = new List<MergeObject>();
-    private Dictionary<Rigidbody2D, (Vector2 vel, float angVel, float grav)> savedStates = new();
+    private readonly Dictionary<int, GameObject> prefabsByValue = new();
+    private readonly Dictionary<Rigidbody2D, (Vector2 velocity, float angularVelocity, float gravity, bool simulated)> savedStates = new();
+    private readonly Dictionary<MergeObject, float> pendingActivations = new();
+    private readonly List<MergeObject> activationBuffer = new();
+    private readonly List<RaycastResult> raycastResults = new();
+    private float spawnTimer = -1f;
+    private bool physicsPaused;
+    private bool dragging;
+    private int highestValue;
 
     [Header("Starter Settings")]
     public bool firstTouch = true;
@@ -32,175 +38,252 @@ public class MergeObjectsController : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance && Instance != this)
+        {
+            Debug.LogError("Only one MergeObjectsController is allowed in a scene.", this);
+            enabled = false;
+            return;
+        }
         Instance = this;
         mainCam = Camera.main;
+        initialPosition = transform.position;
+    }
+
+    public bool ValidateConfiguration()
+    {
+        prefabsByValue.Clear();
+        highestValue = 0;
+        bool valid = mainCam && lamasParent && mergeEffect && mergeEffectParent
+            && EventSystem.current && spawnDelay >= 0 && moveRange >= 0
+            && mergeObjects != null && mergeObjects.Length > 0
+            && spawnableIndexRange > 0 && spawnableIndexRange <= mergeObjects.Length
+            && starterGrpPrefabs != null && starterGrpPrefabs.Length > 0;
+        if (mergeObjects != null)
+        {
+            foreach (var prefab in mergeObjects)
+            {
+                if (!prefab || !prefab.TryGetComponent(out MergeObject item)
+                    || !prefab.GetComponent<Rigidbody2D>() || !prefab.GetComponent<SpriteRenderer>()
+                    || !prefab.GetComponent<Collider2D>() || item.value <= 0
+                    || prefabsByValue.ContainsKey(item.value))
+                {
+                    valid = false;
+                    continue;
+                }
+                prefabsByValue.Add(item.value, prefab);
+                highestValue = Mathf.Max(highestValue, item.value);
+            }
+        }
+        for (int value = 1; value <= highestValue; value++)
+            valid &= prefabsByValue.ContainsKey(value);
+        if (starterGrpPrefabs != null)
+        {
+            foreach (var prefab in starterGrpPrefabs)
+            {
+                if (!prefab || prefab.transform.childCount == 0)
+                {
+                    valid = false;
+                    continue;
+                }
+                foreach (Transform child in prefab.transform)
+                {
+                    var item = child.GetComponent<MergeObject>();
+                    valid &= item && child.GetComponent<Rigidbody2D>()
+                        && child.GetComponent<SpriteRenderer>() && child.GetComponent<Collider2D>()
+                        && prefabsByValue.ContainsKey(item.value);
+                }
+            }
+        }
+        if (!valid) Debug.LogError("Invalid spawn configuration: check camera, EventSystem, references, prefab components, values and spawn range.", this);
+        return valid;
     }
 
     public void Init()
     {
-        InitStarterMergeObjects();
-        StartCoroutine(SpawnDelayRoutine());
-    }
-
-    private void InitStarterMergeObjects()
-    {
-        GameObject instStarterGrp = Instantiate(starterGrpPrefabs[Random.Range(0, starterGrpPrefabs.Length)], lamasParent);
-
-        List<Transform> children = new List<Transform>();
-        foreach (Transform child in instStarterGrp.transform)
+        if (!firstTouch) return;
+        firstTouch = false;
+        var group = Instantiate(starterGrpPrefabs[Random.Range(0, starterGrpPrefabs.Length)], lamasParent);
+        while (group.transform.childCount > 0)
         {
-            children.Add(child);
-            child.GetComponent<Rigidbody2D>().gravityScale = 0;
+            var child = group.transform.GetChild(0);
+            child.SetParent(lamasParent, true);
+            var item = child.GetComponent<MergeObject>();
+            item.Body.gravityScale = 0;
+            instantiatedMergeObjects.Add(item);
         }
-
-        foreach (Transform child in children)
-        {
-            child.SetParent(lamasParent.transform);
-            instantiatedMergeObjects.Add(child.GetComponent<MergeObject>());
-        }
-
-        Destroy(instStarterGrp);
+        Destroy(group);
+        spawnTimer = spawnDelay;
     }
 
     private void Update()
     {
-        if (GameManager.Instance.isGameOver || GameManager.Instance.isPause || firstTouch)
+        if (!GameManager.Instance || !GameManager.Instance.IsPlaying)
+        {
+            dragging = false;
             return;
-
-        Vector3 mousePosition = Input.mousePosition;
-        mousePosition.z = Mathf.Abs(mainCam.transform.position.z);
-
-        Vector3 worldPosition = mainCam.ScreenToWorldPoint(mousePosition);
+        }
+        UpdateDelayedObjects(Time.deltaTime);
+        if (Input.GetMouseButtonDown(0)) dragging = !IsPointerOverGUIElements();
+        if (!dragging) return;
+        var position = Input.mousePosition;
+        position.z = Mathf.Abs(mainCam.transform.position.z);
+        var worldPosition = mainCam.ScreenToWorldPoint(position);
         worldPosition.x = Mathf.Clamp(worldPosition.x, -moveRange, moveRange);
         worldPosition.y = transform.position.y;
         worldPosition.z = transform.position.z;
-
         transform.position = worldPosition;
+        if (currentMergeObject) currentMergeObject.transform.position = worldPosition;
+        if (!Input.GetMouseButtonUp(0)) return;
+        dragging = false;
+        if (!currentMergeObject || IsPointerOverGUIElements()) return;
+        SoundManager.Instance.PlaySpawnSound();
+        currentMergeObject.Sprite.sortingOrder = 1;
+        pendingActivations.Add(currentMergeObject, 0.25f);
+        currentMergeObject = null;
+        spawnTimer = spawnDelay;
+    }
 
-        if (currentMergeObject != null)
-            currentMergeObject.transform.position = transform.position;
-
-        // Spawn object on mouse click
-        if (currentMergeObject != null && Input.GetMouseButtonUp(0) && !IsPointerOverGUIElements())
+    private void UpdateDelayedObjects(float deltaTime)
+    {
+        activationBuffer.Clear();
+        activationBuffer.AddRange(pendingActivations.Keys);
+        foreach (var item in activationBuffer)
         {
-            SoundManager.Instance.PlaySpawnSound();
-            currentMergeObject.GetComponent<SpriteRenderer>().sortingOrder = 1;
-
-            StartCoroutine(activateDelayRoutine(currentMergeObject));
-            currentMergeObject = null;
-
-            StartCoroutine(SpawnDelayRoutine());
-        }
-
-        if (!firstContact)
-        {
-            foreach (var mergeObject in instantiatedMergeObjects)
+            float remaining = pendingActivations[item] - deltaTime;
+            if (!item || remaining <= 0)
             {
-                if (mergeObject != null && mergeObject.GetComponent<Rigidbody2D>().gravityScale != 1)
-                    mergeObject.GetComponent<Rigidbody2D>().gravityScale = 1;
+                pendingActivations.Remove(item);
+                if (item)
+                {
+                    item.Body.simulated = true;
+                    var color = item.Sprite.color;
+                    color.a = 1;
+                    item.Sprite.color = color;
+                }
             }
+            else pendingActivations[item] = remaining;
         }
+        if (spawnTimer < 0) return;
+        spawnTimer -= deltaTime;
+        if (spawnTimer > 0) return;
+        spawnTimer = -1;
+        var prefab = mergeObjects[Random.Range(0, spawnableIndexRange)];
+        currentMergeObject = SpawnMergeObject(prefab).GetComponent<MergeObject>();
+        currentMergeObject.Body.simulated = false;
+        currentMergeObject.Sprite.sortingOrder = -1;
+        var previewColor = currentMergeObject.Sprite.color;
+        previewColor.a = 0.6f;
+        currentMergeObject.Sprite.color = previewColor;
+    }
+
+    public void ReleaseStarterObjects()
+    {
+        if (!firstContact) return;
+        firstContact = false;
+        foreach (var item in instantiatedMergeObjects)
+            if (item) item.Body.gravityScale = 1;
     }
 
     public void PauseAllMergeObjects(bool pause)
     {
+        dragging = false;
+        if (physicsPaused == pause) return;
+        physicsPaused = pause;
         if (pause)
         {
             savedStates.Clear();
-            foreach (var go in instantiatedMergeObjects)
+            foreach (var item in instantiatedMergeObjects)
             {
-                if (go && go.TryGetComponent(out Rigidbody2D rb) && !savedStates.ContainsKey(rb))
-                {
-                    savedStates[rb] = (rb.linearVelocity, rb.angularVelocity, rb.gravityScale);
-                    rb.simulated = false;
-                }
+                if (!item) continue;
+                var rb = item.Body;
+                savedStates[rb] = (rb.linearVelocity, rb.angularVelocity, rb.gravityScale, rb.simulated);
+                rb.simulated = false;
             }
         }
         else
         {
-            foreach (var kvp in savedStates)
+            foreach (var state in savedStates)
             {
-                var rb = kvp.Key;
+                var rb = state.Key;
                 if (!rb) continue;
-
-                rb.simulated = true;
-                rb.linearVelocity = kvp.Value.vel;
-                rb.angularVelocity = kvp.Value.angVel;
-                rb.gravityScale = kvp.Value.grav;
+                rb.simulated = state.Value.simulated;
+                rb.linearVelocity = state.Value.velocity;
+                rb.angularVelocity = state.Value.angularVelocity;
+                rb.gravityScale = state.Value.gravity;
             }
+            savedStates.Clear();
         }
     }
 
-    private IEnumerator activateDelayRoutine(GameObject mergeObject)
+    public void StopSpawning()
     {
-        yield return new WaitForSeconds(0.25f);
-        mergeObject.GetComponent<Rigidbody2D>().simulated = true;
-
-        Color tmpColor = mergeObject.GetComponent<SpriteRenderer>().color;
-        tmpColor.a = 1f;
-        mergeObject.GetComponent<SpriteRenderer>().color = tmpColor;
+        spawnTimer = -1;
+        pendingActivations.Clear();
+        dragging = false;
     }
 
-    private IEnumerator SpawnDelayRoutine()
+    public void ResetGame()
     {
-        yield return new WaitForSeconds(spawnDelay);
-
-        int randomIndex = Random.Range(0, spawnableIndexRange);
-        currentMergeObject = SpawnMergeObject(mergeObjects[randomIndex]);
-        currentMergeObject.GetComponent<Rigidbody2D>().simulated = false;
-        currentMergeObject.GetComponent<SpriteRenderer>().sortingOrder = -1;
-
-        Color tmpColor = currentMergeObject.GetComponent<SpriteRenderer>().color;
-        tmpColor.a = 0.6f;
-        currentMergeObject.GetComponent<SpriteRenderer>().color = tmpColor;
+        StopSpawning();
+        foreach (Transform child in lamasParent)
+        {
+            child.gameObject.SetActive(false);
+            Destroy(child.gameObject);
+        }
+        foreach (Transform child in mergeEffectParent) Destroy(child.gameObject);
+        instantiatedMergeObjects.Clear();
+        savedStates.Clear();
+        activationBuffer.Clear();
+        currentMergeObject = null;
+        physicsPaused = false;
+        firstTouch = true;
+        firstContact = true;
+        transform.position = initialPosition;
     }
 
-    public GameObject SpawnMergeObject(GameObject mergeObject)
+    public void Unregister(MergeObject item)
     {
-        GameObject newMergeObject = Instantiate(mergeObject, transform.position, Quaternion.Euler(0, 0, Random.Range(0f, 360f)), lamasParent);
-        instantiatedMergeObjects.Add(newMergeObject.GetComponent<MergeObject>());
-        return newMergeObject;
+        instantiatedMergeObjects.Remove(item);
+        pendingActivations.Remove(item);
+        if (item.Body) savedStates.Remove(item.Body);
+        if (currentMergeObject == item) currentMergeObject = null;
+    }
+
+    public GameObject SpawnMergeObject(GameObject prefab)
+    {
+        var go = Instantiate(prefab, transform.position, Quaternion.Euler(0, 0, Random.Range(0f, 360f)), lamasParent);
+        instantiatedMergeObjects.Add(go.GetComponent<MergeObject>());
+        return go;
     }
 
     public GameObject SpawnMergeObjectByValue(int value)
     {
-        foreach (GameObject mergeObject in mergeObjects)
-        {
-            MergeObject mergeObjectForSpawning = mergeObject.GetComponent<MergeObject>();
-            if (mergeObjectForSpawning.value == value)
-                return SpawnMergeObject(mergeObjectForSpawning.gameObject);
-        }
-
-        return null;
+        return prefabsByValue.TryGetValue(value, out var prefab) ? SpawnMergeObject(prefab) : null;
     }
 
-    private bool IsPointerOverGUIElements()
+    public bool IsHighestValue(int value) => value == highestValue;
+
+    public bool IsPointerOverGUIElements()
     {
-        PointerEventData eventData = new PointerEventData(EventSystem.current);
-        eventData.position = Input.mousePosition;
-
-        List<RaycastResult> results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(eventData, results);
-
-        foreach (RaycastResult result in results)
-        {
-            if (result.gameObject == GameManager.Instance.btnPause.gameObject || result.gameObject == GameManager.Instance.panelPause.gameObject)
-            {
-                return true;
-            }
-        }
-
+        if (!EventSystem.current) return false;
+        var pointer = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
+        raycastResults.Clear();
+        EventSystem.current.RaycastAll(pointer, raycastResults);
+        foreach (var hit in raycastResults)
+            if (hit.gameObject.GetComponentInParent<UnityEngine.UI.Selectable>()) return true;
         return false;
     }
 
-    public void SpawnMergeEffect(Vector2 position, int mergeValue)
+    public void SpawnMergeEffect(Vector2 position, int value)
     {
-        GameObject newMergeEffect = Instantiate(mergeEffect, position, Quaternion.identity, mergeEffectParent);
+        var effect = Instantiate(mergeEffect, position, Quaternion.identity, mergeEffectParent);
+        float scale = Mathf.Lerp(1, 3, Mathf.InverseLerp(1, highestValue, value));
+        effect.transform.localScale = Vector3.one * scale;
+        Destroy(effect, 3);
+    }
 
-        float t = Mathf.InverseLerp(0, mergeObjects.Length - 1, mergeValue);
-        float scale = Mathf.Lerp(1f, 3f, t);
-        newMergeEffect.transform.localScale = Vector3.one * scale;
-
-        Destroy(newMergeEffect, 3f);
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 }

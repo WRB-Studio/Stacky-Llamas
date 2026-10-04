@@ -14,21 +14,43 @@
 
 ## About
 
-**Stacky Llamas** is a compact puzzle prototype that turns matching and combining objects into a relaxed score-driven loop.
+**Stacky Llamas** is a compact puzzle game that turns matching and combining objects into a relaxed score-driven loop.
 
 ## Highlights
 
 - **Merge-based core:** Combine matching objects to progress.
-- **Persistent state:** Local saves keep the puzzle state between sessions.
+- **Saved preferences:** Best score and sound setting persist between sessions; the current board is not saved.
 - **Responsive feedback:** Sound reinforces each interaction.
 
 ## Technical details
 
-- **Engine:** Unity `6000.0.59f2`
+- **Engine:** Unity `6000.3.15f1`
 - **Status:** Complete
 
 ## Run locally
 
 1. Clone the repository.
-2. Open it in Unity Hub with Unity `6000.0.59f2`.
+2. Open it in Unity Hub with Unity `6000.3.15f1`.
 3. Open a scene in `Assets/Scenes` and press Play.
+
+## Gameplay rules
+
+- Matching llamas merge into the next level. Two level-16 llamas disappear with points and an effect.
+- Each merge awards `level * 10` base points. A chain of N merges within 0.75 seconds of each other is worth N times the chain's base points. The bonus is paid when the combo expires or the run ends.
+- Pause freezes physics, spawn/activation timers and the combo. The preview stays inactive when resuming.
+- Returning from another app or a locked screen leaves the pause menu open; resume explicitly.
+- Restart clears the board and all pending actions. Best scores are also preserved on restart, exit and app suspension.
+
+## Verification
+
+Run `StackyLlamas.PlayModeTests` in Unity's Test Runner (PlayMode). The tests load the actual `Ingame` scene and restore the existing best-score/sound preferences afterwards.
+
+Before uploading an Android update, test on a device:
+
+- Pause/resume before the first drop and immediately after a drop; the preview must never fall by itself.
+- Restart rapidly, including during spawn delays; no old objects may reappear.
+- Lock/unlock the screen and switch apps; physics must stay paused until Resume.
+- Check touch gestures, tilt controls, notches/navigation bars and multiple screen ratios.
+- Run a longer session with many merges/restarts and check the Profiler and device logs.
+
+The target Android SDK is selected automatically by Unity. Verify the resulting bundle's target SDK and signing/version code before publishing. The existing `BestScore` and `SoundOnOff` preference keys are retained for installed users.

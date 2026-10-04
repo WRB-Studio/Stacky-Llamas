@@ -1,0 +1,5 @@
+{
+  "name": "StackyLlamas.PlayModeTests",
+  "references": ["StackyLlamas.Runtime", "UnityEngine.UI", "Unity.TextMeshPro"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
