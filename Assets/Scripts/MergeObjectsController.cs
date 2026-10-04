@@ -274,11 +274,23 @@ public class MergeObjectsController : MonoBehaviour
         return false;
     }
 
-    public void SpawnMergeEffect(Vector2 position, int value)
+    public void SpawnMergeEffect(Vector2 position, int value, int comboCount = 1)
     {
         var effect = Instantiate(mergeEffect, position, Quaternion.identity, mergeEffectParent);
         float scale = Mathf.Lerp(1, 3, Mathf.InverseLerp(1, highestValue, value));
-        effect.transform.localScale = Vector3.one * scale;
+        float intensity = Mathf.Clamp01((comboCount - 1) / 5f);
+        effect.transform.localScale = Vector3.one * scale * Mathf.Lerp(1, 1.5f, intensity);
+        var particles = effect.GetComponent<ParticleSystem>();
+        if (particles && intensity > 0)
+        {
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = particles.main;
+            main.startSpeedMultiplier *= Mathf.Lerp(1, 1.35f, intensity);
+            main.startSizeMultiplier *= Mathf.Lerp(1, 1.2f, intensity);
+            main.startColor = Color.Lerp(Color.white, new Color(1, 0.75f, 0.25f), intensity);
+            particles.Play();
+            particles.Emit(Mathf.RoundToInt(12 * intensity));
+        }
         Destroy(effect, 3);
     }
 

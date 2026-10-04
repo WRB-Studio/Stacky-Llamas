@@ -16,6 +16,11 @@ public class GameManager : MonoBehaviour
     private int comboCounter;
     private float comboTimer;
     private float comboPoints;
+    [SerializeField] private MergeFeedback mergeFeedback;
+    private Vector2? lastMergePosition;
+    public int ComboCount => comboCounter;
+    public float ComboTimeRemaining => Mathf.Max(0, comboTimer);
+    public float PendingComboBonus => comboPoints * Mathf.Max(0, comboCounter - 1);
 
     [Header("Pause Menu")]
     public Button btnPause;
@@ -62,9 +67,9 @@ public class GameManager : MonoBehaviour
         bool valid = txtScore && txtComboCounter && btnPause && panelPause && btnResume
             && btnReplay && btnSound && btnExit && imgSoundOff && gameOverGrp
             && txtHighscores && btnRestart && tutorial && maxComboTime >= 0
-            && MergeObjectsController.Instance && SoundManager.Instance;
+            && MergeObjectsController.Instance && SoundManager.Instance && mergeFeedback;
         if (!valid || !MergeObjectsController.Instance.ValidateConfiguration()
-            || !SoundManager.Instance.ValidateConfiguration())
+            || !SoundManager.Instance.ValidateConfiguration() || !mergeFeedback.ValidateConfiguration())
         {
             Debug.LogError("Game setup is incomplete. Assign the required manager and UI references.", this);
             enabled = false;
@@ -77,7 +82,7 @@ public class GameManager : MonoBehaviour
         btnExit.onClick.AddListener(OnBtnExit);
         btnSound.onClick.AddListener(OnBtnSound);
         btnRestart.onClick.AddListener(RestartGame);
-        SafeArea.CreateForCanvas(txtScore.canvas.rootCanvas);
+        mergeFeedback.Init(this);
         initialized = true;
         ResetSessionUI();
         UpdateApplicationSuspension();
@@ -114,7 +119,7 @@ public class GameManager : MonoBehaviour
             Physics2D.gravity = new Vector2(gravity.x, gravity.y) * 9.81f;
     }
 
-    public void AddScore(float points)
+    public void AddScore(float points, Vector2? mergePosition = null)
     {
         if (!IsPlaying || points <= 0 || float.IsNaN(points) || float.IsInfinity(points)) return;
         if (comboCounter > 0 && comboTimer <= 0) FinishCombo();
@@ -122,8 +127,11 @@ public class GameManager : MonoBehaviour
         comboPoints += points;
         comboCounter++;
         comboTimer = maxComboTime;
-        txtComboCounter.gameObject.SetActive(comboCounter > 1);
+        lastMergePosition = mergePosition;
+        txtComboCounter.gameObject.SetActive(maxComboTime > 0);
         txtComboCounter.text = "x" + comboCounter;
+        mergeFeedback.RefreshCombo();
+        if (mergePosition.HasValue) mergeFeedback.ShowPoints(mergePosition.Value, points, comboCounter);
         UpdateScoreUI();
         if (maxComboTime == 0) FinishCombo();
     }
@@ -131,11 +139,16 @@ public class GameManager : MonoBehaviour
     private void FinishCombo()
     {
         // Base points are awarded immediately; this makes the full chain worth xN.
-        score += comboPoints * Mathf.Max(0, comboCounter - 1);
+        float bonus = PendingComboBonus;
+        score += bonus;
+        if (bonus > 0 && lastMergePosition.HasValue && !isGameOver)
+            mergeFeedback.ShowPoints(lastMergePosition.Value, bonus, comboCounter, true);
         comboCounter = 0;
         comboTimer = 0;
         comboPoints = 0;
+        lastMergePosition = null;
         txtComboCounter.gameObject.SetActive(false);
+        mergeFeedback.RefreshCombo();
         UpdateScoreUI();
     }
 
@@ -147,6 +160,7 @@ public class GameManager : MonoBehaviour
         var controller = MergeObjectsController.Instance;
         controller.StopSpawning();
         controller.PauseAllMergeObjects(true);
+        mergeFeedback.Clear();
         if (SystemInfo.supportsGyroscope) Input.gyro.enabled = false;
         SoundManager.Instance.PlayGameOverMusic();
         btnPause.gameObject.SetActive(false);
@@ -160,6 +174,7 @@ public class GameManager : MonoBehaviour
     {
         if (!initialized || isGameOver || isPause) return;
         isPause = true;
+        mergeFeedback.RefreshCombo();
         panelPause.SetActive(true);
         MergeObjectsController.Instance.PauseAllMergeObjects(true);
         if (SystemInfo.supportsGyroscope) Input.gyro.enabled = false;
@@ -209,6 +224,8 @@ public class GameManager : MonoBehaviour
         comboCounter = 0;
         comboTimer = 0;
         comboPoints = 0;
+        lastMergePosition = null;
+        mergeFeedback.Clear();
         UpdateScoreUI();
         txtComboCounter.gameObject.SetActive(false);
         txtHighscores.text = "";

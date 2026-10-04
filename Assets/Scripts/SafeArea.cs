@@ -3,40 +3,34 @@ using UnityEngine;
 [RequireComponent(typeof(RectTransform))]
 public class SafeArea : MonoBehaviour
 {
+    [SerializeField, Tooltip("Opt in to display-notch adaptation. Disabled to preserve the editor layout.")]
+    private bool applyDeviceSafeArea;
     private RectTransform rectTransform;
+    private Vector2 authoredAnchorMin;
+    private Vector2 authoredAnchorMax;
     private Rect previousArea;
     private Vector2Int previousSize;
 
-    public static void CreateForCanvas(Canvas canvas)
+    private void Awake()
     {
-        if (!canvas || canvas.GetComponentInChildren<SafeArea>()) return;
-        var container = new GameObject("SafeArea", typeof(RectTransform));
-        var rect = container.GetComponent<RectTransform>();
-        rect.SetParent(canvas.transform, false);
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-        int childCount = canvas.transform.childCount - 1;
-        for (int i = 0; i < childCount; i++)
-            canvas.transform.GetChild(0).SetParent(rect, false);
-        container.AddComponent<SafeArea>();
+        rectTransform = GetComponent<RectTransform>();
+        authoredAnchorMin = rectTransform.anchorMin;
+        authoredAnchorMax = rectTransform.anchorMax;
     }
 
-    private void Awake() => rectTransform = GetComponent<RectTransform>();
     private void OnEnable() => ApplySafeArea();
     private void Update() => ApplySafeArea();
 
     private void ApplySafeArea()
     {
-        if (Screen.width <= 0 || Screen.height <= 0) return;
+        if (!applyDeviceSafeArea || Screen.width <= 0 || Screen.height <= 0) return;
         Rect area = Screen.safeArea;
         var size = new Vector2Int(Screen.width, Screen.height);
         if (area == previousArea && size == previousSize) return;
-        rectTransform.anchorMin = new Vector2(area.xMin / size.x, area.yMin / size.y);
-        rectTransform.anchorMax = new Vector2(area.xMax / size.x, area.yMax / size.y);
-        rectTransform.offsetMin = Vector2.zero;
-        rectTransform.offsetMax = Vector2.zero;
+        var minimum = new Vector2(area.xMin / size.x, area.yMin / size.y);
+        var available = new Vector2(area.width / size.x, area.height / size.y);
+        rectTransform.anchorMin = minimum + Vector2.Scale(available, authoredAnchorMin);
+        rectTransform.anchorMax = minimum + Vector2.Scale(available, authoredAnchorMax);
         previousArea = area;
         previousSize = size;
     }

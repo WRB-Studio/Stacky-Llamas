@@ -50,8 +50,8 @@ public class MergeObject : MonoBehaviour
         inMergeProcess = true;
         other.inMergeProcess = true;
         if (successor) successor.transform.position = position;
-        GameManager.Instance.AddScore(value * 10);
-        controller.SpawnMergeEffect(position, value);
+        GameManager.Instance.AddScore(value * 10, position);
+        controller.SpawnMergeEffect(position, value, GameManager.Instance.ComboCount);
         Consume();
         other.Consume();
         return true;

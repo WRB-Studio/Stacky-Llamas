@@ -36,10 +36,15 @@
 ## Gameplay rules
 
 - Matching llamas merge into the next level. Two level-16 llamas disappear with points and an effect.
-- Each merge awards `level * 10` base points. A chain of N merges within 0.75 seconds of each other is worth N times the chain's base points. The bonus is paid when the combo expires or the run ends.
-- Pause freezes physics, spawn/activation timers and the combo. The preview stays inactive when resuming.
+- Each merge awards `level * 10` base points. A chain of N merges within the configured `GameManager.maxComboTime` window of each other is worth N times the chain's base points. The bonus is paid when the combo expires or the run ends.
+- Merge points float upwards at the merge position. A shrinking bar below the combo multiplier shows the remaining window, and the pending bonus is displayed separately. Longer chains boost the existing particle effect (capped at x6 intensity).
+- Pause freezes physics, spawn/activation timers, point popups and the combo. The preview stays inactive when resuming.
 - Returning from another app or a locked screen leaves the pause menu open; resume explicitly.
 - Restart clears the board and all pending actions. Best scores are also preserved on restart, exit and app suspension.
+
+## Editing the feedback UI
+
+The feedback is authored in `Ingame`, under `Canvas/SafeArea`: `txtComboCounter` contains `ComboTimer/RemainingTime` and `PendingComboBonus`. `MergePoints` contains 12 reusable instances of `Assets/Prefabs/MergePointsPopup.prefab`. Edit their layout, font and base colors in the scene or prefab; `MergeFeedback` on `SafeArea` exposes animation settings and scene references. No UI objects are created or reparented at runtime, and the combo position/anchors are preserved. The timer updates its Image fill amount without changing its RectTransform. Only floating point popups move and scale. Automatic display safe-area adaptation is disabled by default; opt in with Apply Device Safe Area on the SafeArea component if needed. Authored offsets are preserved even when opting in.
 
 ## Verification
 
