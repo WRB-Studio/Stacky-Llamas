@@ -9,6 +9,8 @@ public class MergeObject : MonoBehaviour
     public Rigidbody2D Body { get; private set; }
     public SpriteRenderer Sprite { get; private set; }
     private bool isBounce;
+    private bool waitingToLeaveSpawn;
+    private float mergeUnlockHeight;
 
     private void Awake()
     {
@@ -38,11 +40,33 @@ public class MergeObject : MonoBehaviour
         if (other && GetInstanceID() < other.GetInstanceID()) TryMerge(other);
     }
 
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        var other = collision.collider.GetComponent<MergeObject>();
+        if (other && GetInstanceID() < other.GetInstanceID()) TryMerge(other);
+    }
+
+    public void PrepareDrop(float spawnHeight)
+    {
+        var collider = GetComponent<CircleCollider2D>();
+        var scale = transform.lossyScale;
+        float radius = collider.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+        mergeUnlockHeight = spawnHeight - 2 * radius;
+        waitingToLeaveSpawn = true;
+    }
+
+    private bool CanMergeAfterDrop()
+    {
+        if (waitingToLeaveSpawn && Body.position.y <= mergeUnlockHeight)
+            waitingToLeaveSpawn = false;
+        return !waitingToLeaveSpawn;
+    }
+
     public bool TryMerge(MergeObject other)
     {
         if (!GameManager.Instance || !GameManager.Instance.IsPlaying || !other || other == this
             || inMergeProcess || other.inMergeProcess || value != other.value
-            || !Body.simulated || !other.Body.simulated) return false;
+            || !Body.simulated || !other.Body.simulated || !CanMergeAfterDrop() || !other.CanMergeAfterDrop()) return false;
         var controller = MergeObjectsController.Instance;
         Vector3 position = other.transform.position;
         var successor = controller.SpawnMergeObjectByValue(value + 1);

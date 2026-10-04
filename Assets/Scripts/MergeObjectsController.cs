@@ -138,6 +138,7 @@ public class MergeObjectsController : MonoBehaviour
         if (!currentMergeObject || IsPointerOverGUIElements()) return;
         SoundManager.Instance.PlaySpawnSound();
         currentMergeObject.Sprite.sortingOrder = 1;
+        currentMergeObject.PrepareDrop(transform.position.y);
         pendingActivations.Add(currentMergeObject, 0.25f);
         currentMergeObject = null;
         spawnTimer = spawnDelay;

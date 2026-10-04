@@ -440,4 +440,53 @@ public class GameplayTests
         Assert.That(fillRect.sizeDelta, Is.EqualTo(fillSize));
         Assert.That(fill.fillAmount, Is.InRange(0.01f, 0.99f));
     }
-}
+
+    [Test]
+    public void FreshDropsOnlyMergeOnceBothHaveFallenBelowTheirSpawnHeight()
+    {
+        Vector2 spawn = controller.transform.position;
+        var a = Spawn(1, spawn);
+        var b = Spawn(1, spawn + Vector2.right * 0.1f);
+        a.PrepareDrop(spawn.y);
+        b.PrepareDrop(spawn.y);
+        Assert.That(a.TryMerge(b), Is.False);
+        a.Body.position += Vector2.down * 3;
+        Assert.That(a.TryMerge(b), Is.False, "Both drops must clear the spawn height.");
+        Assert.That(b.TryMerge(a), Is.False);
+        Assert.That(game.score, Is.Zero);
+        b.Body.position += Vector2.down * 3;
+        Assert.That(a.TryMerge(b), Is.True);
+        Assert.That(game.score, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void FastDropsKeepTheOriginalPreviewSpawnDelay()
+    {
+        controller.firstTouch = true;
+        controller.Init();
+        var dropped = Spawn(1, controller.transform.position);
+        dropped.PrepareDrop(controller.transform.position.y);
+        dropped.Body.simulated = false;
+        var field = typeof(MergeObjectsController).GetField("pendingActivations", BindingFlags.Instance | BindingFlags.NonPublic);
+        var pending = (System.Collections.Generic.Dictionary<MergeObject, float>)field.GetValue(controller);
+        pending.Add(dropped, 0.25f);
+        int count = controller.instantiatedMergeObjects.Count;
+        Call(controller, "UpdateDelayedObjects", controller.spawnDelay + 0.01f);
+        Assert.That(controller.instantiatedMergeObjects.Count, Is.EqualTo(count + 1), "The next preview must appear even while the previous drop is still at spawn.");
+        Assert.That(dropped.Body.simulated, Is.False);
+        Assert.That(game.score, Is.Zero);
+    }
+
+    [Test]
+    public void TouchingDropsCanMergeAfterFallingWithoutASecondImpact()
+    {
+        var a = Spawn(1, Vector2.zero);
+        var b = Spawn(1, Vector2.right * 0.1f);
+        a.PrepareDrop(0);
+        b.PrepareDrop(0);
+        Physics2D.Simulate(0.02f);
+        Assert.That(game.score, Is.Zero);
+        for (int i = 0; i < 80 && game.score == 0; i++) Physics2D.Simulate(0.02f);
+        Assert.That(game.score, Is.EqualTo(10), "Existing contacts must retry merges after leaving the spawn height.");
+        Assert.That(controller.instantiatedMergeObjects.Count, Is.EqualTo(1));
+    }}
