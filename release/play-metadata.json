@@ -1,0 +1,17 @@
+{
+  "packageName": "com.WRBStudio.StackyLamas",
+  "listings": [
+    {
+      "language": "en-US",
+      "shortDescription": "Stack llamas, merge matching ones and make room for the next.",
+      "fullDescription": "There's room for one more llama.\n\nDrop colorful llama heads and bring matching ones together. Two of the same become a bigger one. The llamas roll and shift around, though – that nice gap you spotted might be gone by your next drop.\n\nSometimes the matching llama is right next to yours. Sometimes another one is in the way. Merge several pairs in quick succession to get a combo and extra points.\n\nThe stack keeps growing until you run out of room. Your best score stays saved for the next round.",
+      "releaseNotes": "• Clearer scoring with floating points, a combo timer and a bonus display.\n• Improved merging and drop behavior.\n• More reliable pause, restart and handling when switching apps or locking the screen.\n• Better preservation of your best score and sound settings."
+    },
+    {
+      "language": "de-DE",
+      "shortDescription": "Lamas stapeln, gleiche kombinieren und Platz für das nächste schaffen.",
+      "fullDescription": "Da passt noch ein Lama rein.\n\nLass bunte Lamaköpfe fallen und bring gleiche zusammen. Aus zwei gleichen wird ein größeres. Dabei rollen und verrutschen die Lamas – die schöne Lücke von eben kann beim nächsten Wurf schon wieder weg sein.\n\nManchmal liegt das passende Lama direkt daneben. Manchmal ist ein anderes im Weg. Treffen mehrere Paare kurz hintereinander aufeinander, gibt es eine Combo und zusätzliche Punkte.\n\nSo wächst der Stapel, bis dir der Platz ausgeht. Dein Bestwert bleibt für die nächste Runde stehen.",
+      "releaseNotes": "• Klarere Punkteanzeige mit aufsteigenden Punkten, Combo-Timer und Bonusanzeige.\n• Verbessertes Verhalten beim Fallenlassen und Kombinieren.\n• Zuverlässigeres Pausieren und Neustarten sowie Verhalten beim App-Wechsel und Sperren des Bildschirms.\n• Verbesserte Speicherung von Bestwert und Toneinstellung."
+    }
+  ]
+}

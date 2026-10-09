@@ -1,0 +1,27 @@
+name: Checks
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  powershell51:
+    name: Windows PowerShell 5.1
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline release workflow tests
+        shell: powershell
+        run: ./scripts/Test-ReleaseWorkflow.ps1
+
+  powershell7:
+    name: PowerShell 7
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline release workflow tests
+        shell: pwsh
+        run: ./scripts/Test-ReleaseWorkflow.ps1

@@ -30,6 +30,7 @@ public class GameManager : MonoBehaviour
     public Button btnReplay;
     public Button btnSound;
     public Button btnExit;
+    public Button btnPrivacyPolicy;
     public Image imgSoundOff;
     public bool isPause { get; private set; }
 
@@ -80,6 +81,7 @@ public class GameManager : MonoBehaviour
         btnResume.onClick.AddListener(OnBtnResume);
         btnReplay.onClick.AddListener(RestartGame);
         btnExit.onClick.AddListener(OnBtnExit);
+        if (btnPrivacyPolicy) btnPrivacyPolicy.onClick.AddListener(OnBtnPrivacyPolicy);
         btnSound.onClick.AddListener(OnBtnSound);
         btnRestart.onClick.AddListener(RestartGame);
         mergeFeedback.Init(this);
@@ -204,6 +206,11 @@ public class GameManager : MonoBehaviour
         SaveLoadManager.SaveSoundSetting(SoundManager.Instance.soundIsOn);
     }
 
+    private void OnBtnPrivacyPolicy()
+    {
+        Application.OpenURL("https://www.freeprivacypolicy.com/live/79201690-df14-43b5-9005-d2e2384a5fa1");
+    }
+
     private void RestartGame()
     {
         if (!initialized) return;
@@ -281,6 +288,7 @@ public class GameManager : MonoBehaviour
             if (btnResume) btnResume.onClick.RemoveListener(OnBtnResume);
             if (btnReplay) btnReplay.onClick.RemoveListener(RestartGame);
             if (btnExit) btnExit.onClick.RemoveListener(OnBtnExit);
+            if (btnPrivacyPolicy) btnPrivacyPolicy.onClick.RemoveListener(OnBtnPrivacyPolicy);
             if (btnSound) btnSound.onClick.RemoveListener(OnBtnSound);
             if (btnRestart) btnRestart.onClick.RemoveListener(RestartGame);
         }

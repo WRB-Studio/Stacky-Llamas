@@ -49,6 +49,8 @@ The feedback is authored in `Ingame`, under `Canvas/SafeArea`: `txtComboCounter`
 
 ## Verification
 
+The signed APK/AAB workflow, local checks and update revision are documented in [Android release workflow](docs/AndroidRelease.md). The included GitHub checks perform offline tests only; builds and uploads require explicit local commands.
+
 Run `StackyLlamas.PlayModeTests` in Unity's Test Runner (PlayMode). The tests load the actual `Ingame` scene and restore the existing best-score/sound preferences afterwards.
 
 Before uploading an Android update, test on a device:
