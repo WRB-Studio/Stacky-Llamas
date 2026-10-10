@@ -2,11 +2,11 @@
 
 Integration aus dem aktuellen `main`-Stand von [Unity Android Release Tools](https://github.com/WRB-Studio/unity-android-release-tools). [Update-Anleitung](https://github.com/WRB-Studio/unity-android-release-tools/blob/main/UPDATING.md) und [Integrationsanleitung](https://github.com/WRB-Studio/unity-android-release-tools/blob/main/INTEGRATION.md) wurden berücksichtigt.
 
-Installation und beauftragte Updates verwenden standardmäßig den frisch abgerufenen Stand von `origin/main` des Tool-Repositories. Eine bestimmte Version wird nur auf ausdrücklichen Wunsch ausgewählt. Builds laden keine Toolupdates nach. Zuletzt abgeglichener Quellstand am 2026-10-04: `6d4c1fc9eda2a2ba1e2df63bae2133fd63cbd438`; diese ID dokumentiert ausschließlich den geprüften Stand und legt zukünftige Updates nicht fest.
+Installation und beauftragte Updates verwenden standardmäßig den frisch abgerufenen Stand von `origin/main` des Tool-Repositories. Eine bestimmte Version wird nur auf ausdrücklichen Wunsch ausgewählt. Builds laden keine Toolupdates nach. Zuletzt abgeglichener Quellstand am 2026-10-10: `8d9fce859fa9a606a621acd524665e109e7b8e28`; diese ID dokumentiert ausschließlich den geprüften Stand und legt zukünftige Updates nicht fest.
 
 ## Projektkonfiguration
 
-- Unity: `6000.3.15f1`, Android-Paket: `com.WRBStudio.StackyLamas`.
+- Unity: `6000.3.25f1`, Android-Paket: `com.WRBStudio.StackyLamas`.
 - Artefaktname: `Stacky-Llamas`; lokale Konfigurationszuordnung: `com-WRBStudio-StackyLamas`.
 - Aktivierte Szene: `Assets/Scenes/Ingame.unity`.
 - App-Version und Versioncode werden aus Unity gelesen und nicht bei der Installation geändert.
@@ -25,7 +25,9 @@ Ein allgemeiner Integrations-, Update- oder Uploadauftrag autorisiert keine neue
 
 ## Lokale Prüfungen und Builds
 
-Unity vor einem Batch-Build speichern und schließen. Der installierte Editor wird über Unity Hub gefunden; alternativ `-UnityPath` angeben.
+Unity vor einem Batch-Build speichern. Direkte Release-CLI-Builds ohne `-BuildRoot` erfordern einen geschlossenen Projekt-Editor. Das Unity-Menü und CLI-Aufrufe mit `-BuildRoot` verwenden eine isolierte Projektkopie und erlauben einen geöffneten Quell-Editor. Als Cache ausschließlich einen neuen leeren Ordner außerhalb des Projekts oder einen bereits vom Tool für dieses Projekt markierten Cache verwenden. Lokale Cache-/ADB-Einstellungen lassen sich im Menü oder mit `Set-AndroidDeviceBuildSettings.ps1` speichern und bleiben außerhalb von Git.
+
+Den installierten Editor über `-UnityPath` angeben, falls Unity Hubs Installationspfad nicht aktuell ist. Die Kompilierungs- und Menüprüfung für dieses Update verwendete den zur Projektversion passenden installierten Editor.
 
 ```powershell
 ./scripts/Test-ReleaseWorkflow.ps1
@@ -33,6 +35,9 @@ Unity vor einem Batch-Build speichern und schließen. Der installierte Editor wi
 
 # Ausschließlich lokales signiertes APK:
 ./scripts/Build-Apk.ps1
+
+# Ausschließlich lokales signiertes AAB:
+./scripts/Build-Aab.ps1
 
 # Ausschließlich lokales signiertes AAB:
 . ./scripts/ReleaseCommon.ps1
@@ -44,7 +49,22 @@ Invoke-UnityAndroidBuild -Format aab
 
 Builds, Nachweise und Logs liegen unter `Builds/Android` und bleiben außerhalb von Git. Der Buildhelfer stellt Signierung, Versioncode und Bundle-/Gradle-Export-Einstellungen wieder her. Für einen späteren Play-Release den online ermittelten freien Versioncode verwenden; lokale Buildtests verwenden standardmäßig den Projektcode.
 
-Play- und Drive-Befehle ohne `-CheckOnly` übertragen Artefakte und sind nur bei einem ausdrücklichen Upload-/Exportauftrag auszuführen. Production verlangt zusätzlich `-ConfirmProduction`, Store-Texte `-ConfirmMetadata`. Die mitgelieferte GitHub-CI prüft ausschließlich offline unter PowerShell 5.1 und 7; sie baut und veröffentlicht nichts.
+Play- und Drive-Befehle ohne `-CheckOnly` übertragen Artefakte und sind nur bei einem ausdrücklichen Upload-/Exportauftrag auszuführen. Production verlangt zusätzlich `-ConfirmProduction`, Store-Texte `-ConfirmMetadata`. Geräteinstallation und automatischer App-Start mit `Build-ApkAndInstall.ps1` brauchen ebenfalls einen entsprechenden Auftrag; `-ReplaceExistingApp` ist ein gesondertes Opt-in für Datenlöschung bei Signaturwechsel. Die mitgelieferte GitHub-CI prüft ausschließlich offline unter PowerShell 5.1 und 7; sie baut und veröffentlicht nichts.
+
+## Toolupdate am 2026-10-10
+
+Alle PowerShell-Skripte, der Ruby-Helfer und beide Unity-Editor-Dateien gemeinsam aus dem frisch abgerufenen `origin/main` übernommen. Projektkonfiguration, Signierung, gemeinsame Play-Identität, Store-Texte und vorhandene Buildhelfer-GUID erhalten. Neue Menüdatei mit eigener stabiler `.meta` ergänzt. Die lokale LF-/CRLF-Korrektur samt Regressionstest bleibt erforderlich und wurde zusammengeführt.
+
+Neu ist das Menü **Tools → Unity Android Release Tools** mit 18 Aktionen für APK/AAB, Handy, Drive, Play, Einrichtung, Tests, Dateien und Hilfe. Menü-Builds verwenden eine gesperrte Buildkopie; Fortschritt und Abbruch werden im Editor angezeigt. Gerätebuilds ändern den Versioncode im Quellprojekt nicht und können nach bestätigter Installation das Spiel starten.
+
+Prüfungen für diesen übernommenen Stand:
+
+- Offline-Suite unter Windows PowerShell 5.1 und PowerShell 7 bestanden, einschließlich simuliertem Gerätebuild/Installation/App-Start und Menü-Dispatcher.
+- Beide Editor-Dateien gegen Unity `6000.3.25f1` ohne Warnungen kompiliert.
+- Alle 18 Menüaktionen in einem temporären Unity-Testprojekt registriert; keine Menüaktion ausgeführt. Ein erster Versuch scheiterte im Unity-internen MovedFromExtractor; die separate Wiederholung bestand.
+- Bestehende lokale Signierung entschlüsselbar, Keystore und Play-Schlüsseldatei vorhanden. Die zunächst im Sandboxprofil fehlende Konfiguration ist im normalen Windows-Benutzerprofil vorhanden; keine Neukonfiguration erforderlich.
+- Play-Zugriff mit `-CheckOnly` bestanden: Maximum `8`, nächster freier Code `9`. Keine Releaseänderung übertragen.
+- Kein echter Android-Build, keine Geräteinstallation, kein Drive-Export und keine Veröffentlichung im Rahmen dieses Updates. Klickbedienung und Gameplay auf dem Handy bleiben praktische Prüfungen für einen gesonderten Build-/Installationsauftrag.
 
 ## Lokale Anpassung an die Vorlage
 

@@ -33,3 +33,7 @@ Write-Output 'Passed: script syntax, 4 versioncode cases, 3 reused-code rejectio
 & (Join-Path $PSScriptRoot 'Test-PlayMetadata.ps1')
 & (Join-Path $PSScriptRoot 'Test-UnityAndroidBuild.ps1')
 & (Join-Path $PSScriptRoot 'Test-DriveExport.ps1')
+
+& (Join-Path $PSScriptRoot 'Test-AndroidDevice.ps1')
+& (Join-Path $PSScriptRoot 'Test-AndroidDeviceWorkflow.ps1')
+& (Join-Path $PSScriptRoot 'Test-UnityMenuCommand.ps1')

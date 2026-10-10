@@ -2,6 +2,7 @@
 param(
     [ValidateRange(0, [int]::MaxValue)][int]$VersionCode = 0,
     [string]$UnityPath,
+    [string]$BuildRoot,
     [ValidateSet('production', 'internal', 'alpha', 'beta')][string]$Track = 'production',
     [switch]$ConfirmProduction,
     [string]$MetadataFile,
@@ -30,7 +31,7 @@ Write-Host "Package: $($script:ReleaseProject.PackageName); track: $Track; next 
 if ($metadata) { Show-PlayMetadata -Metadata $metadata -VersionCode $VersionCode }
 if ($CheckOnly) { return }
 
-$build = Invoke-UnityAndroidBuild -Format aab -UnityPath $UnityPath -VersionCode $VersionCode
+$build = Invoke-UnityAndroidBuild -Format aab -UnityPath $UnityPath -VersionCode $VersionCode -BuildRoot $BuildRoot
 $arguments = @('supply', '--aab', $build.ArtifactPath, '--track', $Track, '--release_status', $ReleaseStatus,
     '--json_key', $config.ServiceAccountJsonPath, '--package_name', $script:ReleaseProject.PackageName,
     '--skip_upload_images', 'true', '--skip_upload_screenshots', 'true', '--skip_upload_apk', 'true',

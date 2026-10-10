@@ -136,7 +136,8 @@ function Invoke-UnityAndroidBuild {
     param(
         [Parameter(Mandatory)][ValidateSet('apk', 'aab')][string]$Format,
         [string]$UnityPath,
-        [ValidateRange(0, [int]::MaxValue)][int]$VersionCode
+        [ValidateRange(0, [int]::MaxValue)][int]$VersionCode,
+        [string]$BuildRoot
     )
 
     Assert-UnityBuildHelper
@@ -155,13 +156,14 @@ function Invoke-UnityAndroidBuild {
     $logPath = Join-Path $artifactDirectory "unity-$Format.log"
     $receiptPath = Join-Path $artifactDirectory "build-$Format.json"
     $unityLockFile = Join-Path $script:ProjectRoot 'Temp\UnityLockfile'
-    if (Test-Path -LiteralPath $unityLockFile) {
+    if (-not $BuildRoot -and (Test-Path -LiteralPath $unityLockFile)) {
         throw 'This project is currently open in Unity. Save and close its Editor before starting an automated build.'
     }
     New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
     if (Test-Path -LiteralPath $receiptPath) { Remove-Item -LiteralPath $receiptPath }
 
     $previousEnvironment = @{}
+    $cacheLease = $null
     $environmentValues = @{
         UNITY_RELEASE_PROTOCOL_VERSION = $script:BuildProtocolVersion.ToString()
         UNITY_RELEASE_BUILD_OUTPUT = $outputPath
@@ -176,6 +178,14 @@ function Invoke-UnityAndroidBuild {
     }
 
     try {
+        $buildProject = $script:ProjectRoot
+        if ($BuildRoot) {
+            . (Join-Path $PSScriptRoot 'AndroidDeviceCommon.ps1')
+            Write-Host 'DEVICE_STAGE|1|Projekt für den isolierten Build synchronisieren'
+            Assert-AndroidBuildDiskSpace -Paths @($BuildRoot, $artifactDirectory)
+            $cacheLease = Sync-AndroidBuildCache -SourceRoot $script:ProjectRoot -BuildRoot $BuildRoot
+            $buildProject = $cacheLease.Path
+        }
         foreach ($name in $environmentValues.Keys) {
             $previousEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
             [Environment]::SetEnvironmentVariable($name, $environmentValues[$name], 'Process')
@@ -184,7 +194,7 @@ function Invoke-UnityAndroidBuild {
         $process = Start-Process -FilePath $unity -ArgumentList @(
             '-batchmode', '-nographics', '-quit',
             '-buildTarget', 'Android',
-            '-projectPath', ('"' + $script:ProjectRoot + '"'),
+            '-projectPath', ('"' + $buildProject + '"'),
             '-executeMethod', 'UnityAndroidRelease.Editor.UnityAndroidBuild.BuildFromEnvironment',
             '-logFile', ('"' + $logPath + '"')
         ) -WindowStyle Hidden -Wait -PassThru
@@ -201,9 +211,10 @@ function Invoke-UnityAndroidBuild {
             $receipt.outputPath -ne $outputPath) { throw 'Build receipt does not match the requested release.' }
     }
     finally {
-        foreach ($name in $environmentValues.Keys) {
+        foreach ($name in $previousEnvironment.Keys) {
             [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], 'Process')
         }
+        if ($cacheLease) { $cacheLease.Lock.Dispose() }
     }
 
     return [PSCustomObject]@{ ArtifactPath = $outputPath; Version = [PSCustomObject]@{ Version = $receipt.versionName; VersionCode = $receipt.versionCode } }

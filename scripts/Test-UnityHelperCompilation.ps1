@@ -34,7 +34,8 @@ try {
         $arguments += '-define:UNITY_2021_3_OR_NEWER'
     }
     $arguments += @($references | ForEach-Object { '-r:"' + $_.FullName + '"' })
-    $arguments += '"' + (Join-Path (Split-Path -Parent $PSScriptRoot) 'Assets/Editor/UnityAndroidBuild.cs') + '"'
+    $arguments += @(Get-ChildItem -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'Assets/Editor') -Filter '*.cs' |
+        ForEach-Object { '"' + $_.FullName + '"' })
     $responseFile = Join-Path $testDirectory 'compile.rsp'
     [IO.File]::WriteAllLines($responseFile, $arguments)
     if ($runtime) { & $runtime $compiler ('@' + $responseFile) }

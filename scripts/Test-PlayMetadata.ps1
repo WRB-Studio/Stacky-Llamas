@@ -74,7 +74,7 @@ function Get-ReleaseConfig { return [pscustomobject]@{ ServiceAccountJsonPath = 
 function Get-HighestPlayVersionCode { return 5 }
 function Get-ProjectVersion { return [pscustomobject]@{ VersionCode = 3 } }
 function Resolve-ReleaseVersionCode { param($HighestPlayVersion, $RequestedVersion, $ProjectVersion) return 6 }
-function Invoke-UnityAndroidBuild { param($Format, $UnityPath, $VersionCode) return [pscustomobject]@{ ArtifactPath = 'example-not-uploaded.aab' } }
+function Invoke-UnityAndroidBuild { param($Format, $UnityPath, $VersionCode, $BuildRoot) return [pscustomobject]@{ ArtifactPath = 'example-not-uploaded.aab' } }
 '@ | Set-Content (Join-Path $fixtureScripts 'ReleaseCommon.ps1') -Encoding UTF8
     @'
 ConvertTo-Json -InputObject @($args) | Set-Content (Join-Path $PSScriptRoot 'arguments.json') -Encoding UTF8

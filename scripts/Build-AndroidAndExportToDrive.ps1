@@ -2,6 +2,7 @@
 param(
     [ValidateSet('apk', 'aab')][string]$Format = 'apk',
     [string]$UnityPath,
+    [string]$BuildRoot,
     [ValidateRange(0, [int]::MaxValue)][int]$VersionCode = 0,
     [string]$DriveDirectory,
     [switch]$Force,
@@ -19,5 +20,5 @@ if ($CheckOnly) {
     return
 }
 
-$build = Invoke-UnityAndroidBuild -Format $Format -UnityPath $UnityPath -VersionCode $VersionCode
+$build = Invoke-UnityAndroidBuild -Format $Format -UnityPath $UnityPath -VersionCode $VersionCode -BuildRoot $BuildRoot
 Export-AndroidBuildToDriveDirectory -Build $build -Format $Format -DriveDirectory $directory -Force:$Force

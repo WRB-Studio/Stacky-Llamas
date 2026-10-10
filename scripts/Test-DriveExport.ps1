@@ -28,7 +28,7 @@ try {
     # Keep the real configuration/export code; replace only the build and Play boundaries.
     @'
 function Invoke-UnityAndroidBuild {
-    param($Format, $UnityPath, $VersionCode)
+    param($Format, $UnityPath, $VersionCode, $BuildRoot)
     $artifact = Join-Path $script:ProjectRoot "fixture.$Format"
     [IO.File]::WriteAllText($artifact, "simulated signed $Format")
     @{ Format = $Format; UnityPath = $UnityPath; VersionCode = $VersionCode } |

@@ -1,8 +1,9 @@
 [CmdletBinding()]
 param(
     [string]$UnityPath,
-    [ValidateRange(0, [int]::MaxValue)][int]$VersionCode
+    [ValidateRange(0, [int]::MaxValue)][int]$VersionCode,
+    [string]$BuildRoot
 )
 
 . (Join-Path $PSScriptRoot 'ReleaseCommon.ps1')
-Invoke-UnityAndroidBuild -Format apk -UnityPath $UnityPath -VersionCode $VersionCode
+Invoke-UnityAndroidBuild -Format apk -UnityPath $UnityPath -VersionCode $VersionCode -BuildRoot $BuildRoot
