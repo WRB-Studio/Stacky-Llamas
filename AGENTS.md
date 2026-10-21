@@ -45,6 +45,12 @@ Diese Regeln gelten projektübergreifend. Projektspezifische Ergänzungen weiter
 - Zugangsdaten und Geheimnisse schützen. Keine Benutzerdateien ungefragt löschen und keine kostenpflichtigen Aktionen oder Veröffentlichungen ohne Freigabe.
 - Bei riskanten Änderungen Folgen kurz benennen.
 
+## Browser-Nutzung durch den Coding-Agenten
+- Bei allen browserbasierten Tätigkeiten (Web-Recherche, Webseitenbedienung, Sichtprüfung und Debugging von Weboberflächen, auch auf localhost) **ausschließlich den integrierten Codex-Browser der ChatGPT-Desktop-App** (`@Browser`) verwenden, wenn die Funktion verfügbar ist.
+- Für diese agentseitigen Tätigkeiten **keinen externen Browser**, keine Chrome-Erweiterung und keine separat gestartete Browserautomatisierung als Ersatz verwenden.
+- Falls der integrierte Browser in der aktuellen Codex-Umgebung nicht verfügbar ist (z. B. Codex CLI/IDE), die Einschränkung kurz melden und vor dem Einsatz eines alternativen Browser-Werkzeugs die Zustimmung einholen.
+- Ausnahme: Browser-Engines, die Teil des entwickelten Produkts oder ausdrücklich beauftragter automatisierter Tests sind (z. B. Playwright in Testuvo), bleiben zulässig. Die Agenten-Browserregel ersetzt oder behindert diese nicht.
+
 ## Kontext und Kommunikation
 - Nur relevante Dateien, Logs und Informationen lesen; Tokens, Zeit und Kontext sparsam einsetzen.
 - Auf Deutsch und in kurzen, klaren Stichpunkten kommunizieren statt langen Fließtexten.
